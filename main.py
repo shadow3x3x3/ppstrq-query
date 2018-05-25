@@ -1,4 +1,5 @@
 import requests
+import re
 from bs4 import BeautifulSoup
 
 BASE_URL = 'https://ppstrq.nat.gov.tw/pps/pubQuery/PropertyQuery/propertyQuery.do'
@@ -28,7 +29,7 @@ param = {
 
 responses = []
 
-base_req = requests.post(BASE_URL, data=param)
+base_req = requests.get(BASE_URL, param)
 
 base_soup = BeautifulSoup(base_req.content, 'lxml')
 
@@ -37,9 +38,9 @@ certificate_words = []
 
 # Get all reg unit codes and certificate words for getting detail data
 # TODO: Just get single page here, fetch all pages by urself =) (Feature)
-for tr in base_soup.tbody.find_all('tr')[:1]:
+for tr in base_soup.tbody.find_all('tr')[2:3]:
     detail_info = tr[DETAIL_SYMBOL][9:-1].replace("'", '').split(',')
-    reg_unit_codes.append(int(detail_info[0]))
+    reg_unit_codes.append(detail_info[0])
     certificate_words.append(detail_info[1])
 
 # print(reg_unit_codes)
@@ -61,13 +62,53 @@ for code, word in zip(reg_unit_codes, certificate_words):
     param['regUnitCode'] = code
     param['certificateAppNoWord'] = word
 
-    detail_req = requests.post(DETAIL_URL, data=param)
+    detail_req = requests.get(DETAIL_URL, param)
     detail_soup = BeautifulSoup(detail_req.content, 'lxml')
+    main_div = detail_soup.find('div', {
+        'id': 'formInput'
+    })
 
-    target_divs = detail_soup.find_all('div', {
-        'class': 'well pubDetailWellHalf center-block'})
-    basic_response['債務人(買受人、受託人)名稱'] = target_divs[0].find('div', {'class': 'row'}).text[4:].strip()
-    basic_response['抵押權人(出賣人、信託人)名稱'] = target_divs[1].find('div', {'class': 'row'}).text[4:].strip()
+    name_divs = main_div.find_all('div', {
+        'class': 'well pubDetailWellHalf center-block'
+    })
+    basic_response['債務人(買受人、受託人)名稱'] = name_divs[0].find('div', {
+        'class': 'row'
+    }).text[4:].strip()
+
+    basic_response['抵押權人(出賣人、信託人)名稱'] = name_divs[1].find('div', {
+        'class': 'row'
+    }).text[4:].strip()
+
+    main_divs = main_div.find_all('div', {
+        'class': 'well pubDetailWell center-block'
+    })
+
+    basic_info_div = main_divs[0]
+    basic_response['案件類別'] = basic_info_div.find('div', {
+        'class': 'row pubDetailRow'
+    }).find_all('div', {
+        'class': 'col-sm-3 pubDetailValue'
+     })[1].text
+
+    trade_info_div = main_divs[1]
+    trade_info_divs = trade_info_div.find_all('div', {
+        'class': 'row pubDetailRow'
+    })
+    date_divs = trade_info_divs[0]
+    dates = date_divs.find_all('div', {'class': 'col-sm-3 pubDetailValue'})
+    # print(dates)
+    basic_response['契約啟始日期'] = dates[0].text
+    basic_response['契約終止日期'] = dates[1].text
+    money = trade_info_divs[1].find_all('div', {
+        'class': 'col-sm-3 pubDetailValue'
+    })[1].text
+    basic_response['擔保債權金額'] = re.sub('\r|\n|\t', '', money)
+
+    kind = trade_info_divs[-1].find('div', {
+        'class': 'col-sm-9 pubDetailValue'
+    }).text
+    basic_response['標的物種類'] = kind
+
     responses.append(basic_response)
 
 
