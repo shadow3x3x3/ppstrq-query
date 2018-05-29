@@ -38,7 +38,7 @@ certificate_words = []
 
 # Get all reg unit codes and certificate words for getting detail data
 # TODO: Just get single page here, fetch all pages by urself =) (Feature)
-for tr in base_soup.tbody.find_all('tr')[2:3]:
+for tr in base_soup.tbody.find_all('tr'):
     detail_info = tr[DETAIL_SYMBOL][9:-1].replace("'", '').split(',')
     reg_unit_codes.append(detail_info[0])
     certificate_words.append(detail_info[1])
@@ -90,7 +90,7 @@ for code, word in zip(reg_unit_codes, certificate_words):
         'class': 'col-sm-3 pubDetailValue'
      })[1].text
 
-    trade_info_div = main_divs[1]
+    trade_info_div = main_divs[-1]
     trade_info_divs = trade_info_div.find_all('div', {
         'class': 'row pubDetailRow'
     })
