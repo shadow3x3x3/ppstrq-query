@@ -1,5 +1,6 @@
 import requests
 import re
+import pprint
 from bs4 import BeautifulSoup
 
 BASE_URL = 'https://ppstrq.nat.gov.tw/pps/pubQuery/PropertyQuery/propertyQuery.do'
@@ -112,4 +113,4 @@ for code, word in zip(reg_unit_codes, certificate_words):
     responses.append(basic_response)
 
 
-print(responses)
+pprint.pprint(responses)
