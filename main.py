@@ -1,6 +1,9 @@
 import requests
 import re
 import pprint
+import aiohttp
+import asyncio
+
 from bs4 import BeautifulSoup
 
 BASE_URL = 'https://ppstrq.nat.gov.tw/pps/pubQuery/PropertyQuery/propertyQuery.do'
@@ -27,28 +30,7 @@ param = {
   'queryCreditorNo': '',
 }
 
-
-responses = []
-
-base_req = requests.get(BASE_URL, param)
-
-base_soup = BeautifulSoup(base_req.content, 'lxml')
-
-reg_unit_codes = []
-certificate_words = []
-
-# Get all reg unit codes and certificate words for getting detail data
-# TODO: Just get single page here, fetch all pages by urself =) (Feature)
-for tr in base_soup.tbody.find_all('tr'):
-    detail_info = tr[DETAIL_SYMBOL][9:-1].replace("'", '').split(',')
-    reg_unit_codes.append(detail_info[0])
-    certificate_words.append(detail_info[1])
-
-# print(reg_unit_codes)
-# print(certificate_words)
-
-# Get detail data
-for code, word in zip(reg_unit_codes, certificate_words):
+async def fetch_detail(session, code, word):
     basic_response = {
         '債務人(買受人、受託人)名稱': '',
         '契約啟始日期': '',
@@ -59,12 +41,14 @@ for code, word in zip(reg_unit_codes, certificate_words):
         '標的物種類': '',
     }
 
-    print(word)
     param['regUnitCode'] = code
     param['certificateAppNoWord'] = word
 
-    detail_req = requests.get(DETAIL_URL, param)
-    detail_soup = BeautifulSoup(detail_req.content, 'lxml')
+    detail_req = await session.get(DETAIL_URL, params=param)
+    # print(await detail_req.text())
+
+    detail_soup = BeautifulSoup(await detail_req.text(), 'lxml')
+
     main_div = detail_soup.find('div', {
         'id': 'formInput'
     })
@@ -110,7 +94,29 @@ for code, word in zip(reg_unit_codes, certificate_words):
     }).text
     basic_response['標的物種類'] = kind
 
-    responses.append(basic_response)
+    return basic_response
+
+async def main(loop):
+    async with aiohttp.ClientSession() as session:
+        tasks = []
+
+        # Get all reg unit codes and certificate words for getting detail data
+        # TODO: Just get single page here, fetch all pages by urself =) (Feature)
+        base_req = requests.get(BASE_URL, param)
+        base_soup = BeautifulSoup(base_req.content, 'lxml')
+
+        for tr in base_soup.tbody.find_all('tr'):
+            detail_info = tr[DETAIL_SYMBOL][9:-1].replace("'", '').split(',')
+            tasks.append(loop.create_task(
+                fetch_detail(session, detail_info[0], detail_info[1])
+                )
+            )
+
+        finished, unfinished = await asyncio.wait(tasks)
+        all_response = [r.result() for r in finished]
+        pprint.pprint(all_response)
 
 
-pprint.pprint(responses)
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main(loop))
+loop.close()
