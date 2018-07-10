@@ -10,9 +10,9 @@ BASE_URL = 'https://ppstrq.nat.gov.tw/pps/pubQuery/PropertyQuery/propertyQuery.d
 DETAIL_URL = 'https://ppstrq.nat.gov.tw/pps/pubQuery/PropertyQuery/propertyDetail.do'
 
 DETAIL_SYMBOL = 'onclick'
-debtor_name = '大同'
+debtor_name = '大同' # for example
 
-# TODO: Make all strings of key to Constant, just like URL (Performance)
+# TODO: Make all strings of key to Constant, just like URL
 param = {
   'method': 'query',
   'regUnitCode': '',
@@ -101,7 +101,7 @@ async def main(loop):
         tasks = []
 
         # Get all reg unit codes and certificate words for getting detail data
-        # TODO: Just get single page here, fetch all pages by urself =) (Feature)
+        # TODO: Just get single page here, fetch all pages by urself =)
         base_req = requests.get(BASE_URL, param)
         base_soup = BeautifulSoup(base_req.content, 'lxml')
 
